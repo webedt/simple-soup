@@ -6,12 +6,13 @@
   "workspaces": [
     "frontend",
     "backend",
-    "reverse-proxy"
+    "reverse-proxy",
+    "claude-code-api"
   ],
   "scripts": {
-    "dev": "concurrently --names \"BACKEND,FRONTEND,PROXY\" -c \"bgBlue,bgMagenta,bgGreen\" \"npm run dev --workspace=backend\" \"npm run dev --workspace=frontend\" \"npm run dev --workspace=reverse-proxy\"",
+    "dev": "concurrently --names \"BACKEND,FRONTEND,PROXY,CLAUDE\" -c \"bgBlue,bgMagenta,bgGreen,bgCyan\" \"npm run dev --workspace=backend\" \"npm run dev --workspace=frontend\" \"npm run dev --workspace=reverse-proxy\" \"npm run dev --workspace=claude-code-api\"",
     "build": "npm run build --workspaces",
-    "start": "concurrently --names \"BACKEND,FRONTEND,PROXY\" -c \"bgBlue,bgMagenta,bgGreen\" \"npm run start --workspace=backend\" \"npm run start --workspace=frontend\" \"npm run start --workspace=reverse-proxy\"",
+    "start": "concurrently --names \"BACKEND,FRONTEND,PROXY,CLAUDE\" -c \"bgBlue,bgMagenta,bgGreen,bgCyan\" \"npm run start --workspace=backend\" \"npm run start --workspace=frontend\" \"npm run start --workspace=reverse-proxy\" \"npm run dev --workspace=claude-code-api\"",
     "dev:frontend": "npm run dev --workspace=frontend",
     "dev:backend": "npm run dev --workspace=backend",
     "dev:proxy": "npm run dev --workspace=reverse-proxy",

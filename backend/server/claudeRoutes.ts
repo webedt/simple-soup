@@ -5,8 +5,8 @@ import { authenticateToken } from './auth.js'
 export function createClaudeRoutes(pool: Pool | null, dbAvailable: boolean, inMemoryUsers: Map<string, any>): Router {
   const router = Router()
 
-  // Docker Claude Code container configuration
-  const DOCKER_CLAUDE_CODE_URL = process.env.DOCKER_CLAUDE_CODE_URL || 'http://host.docker.internal:3002'
+  // Claude Code API configuration (runs locally)
+  const CLAUDE_CODE_API_URL = process.env.DOCKER_CLAUDE_CODE_URL || 'http://localhost:3002'
 
   /**
    * Helper function to get user's Claude credentials
@@ -81,8 +81,8 @@ export function createClaudeRoutes(pool: Pool | null, dbAvailable: boolean, inMe
       res.flushHeaders()
 
       try {
-        // Step 1: Create a session with docker-claude-code
-        const sessionResponse = await fetch(`${DOCKER_CLAUDE_CODE_URL}/api/sessions`, {
+        // Step 1: Create a session with claude-code-api
+        const sessionResponse = await fetch(`${CLAUDE_CODE_API_URL}/api/sessions`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -94,22 +94,25 @@ export function createClaudeRoutes(pool: Pool | null, dbAvailable: boolean, inMe
         })
 
         if (!sessionResponse.ok) {
-          throw new Error('Failed to create session with Claude Code container')
+          throw new Error('Failed to create session with Claude Code API')
         }
 
         const { sessionId } = await sessionResponse.json()
 
         // Step 2: Stream the prompt
-        const streamResponse = await fetch(`${DOCKER_CLAUDE_CODE_URL}/api/stream/${sessionId}`, {
+        const streamResponse = await fetch(`${CLAUDE_CODE_API_URL}/api/stream/${sessionId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ prompt })
+          body: JSON.stringify({
+            prompt,
+            credentials: parsedCredentials
+          })
         })
 
         if (!streamResponse.ok) {
-          throw new Error('Failed to stream from Claude Code container')
+          throw new Error('Failed to stream from Claude Code API')
         }
 
         if (!streamResponse.body) {
@@ -137,10 +140,10 @@ export function createClaudeRoutes(pool: Pool | null, dbAvailable: boolean, inMe
         res.end()
 
       } catch (error) {
-        console.error('Docker Claude Code error:', error)
+        console.error('Claude Code API error:', error)
         res.write(`data: ${JSON.stringify({
           type: 'error',
-          content: error instanceof Error ? error.message : 'Failed to communicate with Claude Code container'
+          content: error instanceof Error ? error.message : 'Failed to communicate with Claude Code API'
         })}\n\n`)
         res.end()
       }
@@ -181,11 +184,11 @@ export function createClaudeRoutes(pool: Pool | null, dbAvailable: boolean, inMe
 
   /**
    * GET /claude/health
-   * Check if docker-claude-code container is reachable
+   * Check if claude-code-api service is reachable
    */
   router.get('/health', async (req: Request, res: Response) => {
     try {
-      const response = await fetch(`${DOCKER_CLAUDE_CODE_URL}/health`, {
+      const response = await fetch(`${CLAUDE_CODE_API_URL}/health`, {
         method: 'GET',
         signal: AbortSignal.timeout(5000) // 5 second timeout
       })
@@ -194,25 +197,25 @@ export function createClaudeRoutes(pool: Pool | null, dbAvailable: boolean, inMe
         const data = await response.json()
         res.json({
           status: 'ok',
-          dockerClaudeCode: 'connected',
-          containerUrl: DOCKER_CLAUDE_CODE_URL,
-          containerHealth: data
+          claudeCodeApi: 'connected',
+          apiUrl: CLAUDE_CODE_API_URL,
+          apiHealth: data
         })
       } else {
         res.json({
           status: 'degraded',
-          dockerClaudeCode: 'error',
-          containerUrl: DOCKER_CLAUDE_CODE_URL,
-          error: `Container responded with status ${response.status}`
+          claudeCodeApi: 'error',
+          apiUrl: CLAUDE_CODE_API_URL,
+          error: `API responded with status ${response.status}`
         })
       }
     } catch (error) {
       res.json({
         status: 'degraded',
-        dockerClaudeCode: 'unreachable',
-        containerUrl: DOCKER_CLAUDE_CODE_URL,
+        claudeCodeApi: 'unreachable',
+        apiUrl: CLAUDE_CODE_API_URL,
         error: error instanceof Error ? error.message : 'Unknown error',
-        hint: 'Make sure the docker-claude-code container is running'
+        hint: 'Make sure the claude-code-api service is running (npm run dev)'
       })
     }
   })

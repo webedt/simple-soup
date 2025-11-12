@@ -175,7 +175,7 @@ export function createUserRoutes(pool: Pool | null, dbAvailable: boolean, inMemo
     }
   })
 
-  // All user management routes require admin role
+  // All routes below this point require admin role
   router.use(authenticateToken, authorizeRole('admin'))
 
   // Get all users (admin only)
