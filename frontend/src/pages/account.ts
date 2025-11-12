@@ -342,7 +342,7 @@ export function attachAccountListeners(): void {
         if (data.authError) {
           console.error('Authentication error:', data.error)
           localStorage.removeItem('token')
-          window.location.href = '/#/login'
+          navigateToPage('login')
         }
       }
     } catch (error) {
@@ -397,7 +397,7 @@ export function attachAccountListeners(): void {
           showMessage('credentials-status', 'Session expired. Redirecting to login...', true)
           setTimeout(() => {
             localStorage.removeItem('token')
-            window.location.href = '/#/login'
+            navigateToPage('login')
           }, 2000)
         } else {
           showMessage('credentials-status', data.error || 'Failed to save credentials', true)
@@ -436,7 +436,7 @@ export function attachAccountListeners(): void {
           showMessage('credentials-status', 'Session expired. Redirecting to login...', true)
           setTimeout(() => {
             localStorage.removeItem('token')
-            window.location.href = '/#/login'
+            navigateToPage('login')
           }, 2000)
         } else {
           showMessage('credentials-status', `✗ Connection failed: ${data.error || 'Unknown error'}`, true)
