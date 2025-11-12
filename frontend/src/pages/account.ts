@@ -337,6 +337,13 @@ export function attachAccountListeners(): void {
         if (data.credentials && credentialsTextarea) {
           credentialsTextarea.value = JSON.stringify(JSON.parse(data.credentials), null, 2)
         }
+      } else if (response.status === 401) {
+        const data = await response.json()
+        if (data.authError) {
+          console.error('Authentication error:', data.error)
+          localStorage.removeItem('token')
+          window.location.href = '/#/login'
+        }
       }
     } catch (error) {
       console.error('Failed to load credentials:', error)
@@ -386,6 +393,12 @@ export function attachAccountListeners(): void {
 
         if (response.ok) {
           showMessage('credentials-status', 'Credentials saved successfully! You can now use Claude SDK chat.', false)
+        } else if (response.status === 401 && data.authError) {
+          showMessage('credentials-status', 'Session expired. Redirecting to login...', true)
+          setTimeout(() => {
+            localStorage.removeItem('token')
+            window.location.href = '/#/login'
+          }, 2000)
         } else {
           showMessage('credentials-status', data.error || 'Failed to save credentials', true)
         }
@@ -419,6 +432,12 @@ export function attachAccountListeners(): void {
 
         if (response.ok) {
           showMessage('credentials-status', `✓ Connection successful! ${data.message || ''}`, false)
+        } else if (response.status === 401 && data.authError) {
+          showMessage('credentials-status', 'Session expired. Redirecting to login...', true)
+          setTimeout(() => {
+            localStorage.removeItem('token')
+            window.location.href = '/#/login'
+          }, 2000)
         } else {
           showMessage('credentials-status', `✗ Connection failed: ${data.error || 'Unknown error'}`, true)
         }

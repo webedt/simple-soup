@@ -59,11 +59,17 @@ export function generateToken(payload: JWTPayload): string {
 /**
  * Verify a JWT token
  */
-export function verifyToken(token: string): JWTPayload | null {
+export function verifyToken(token: string): { payload: JWTPayload | null; error?: string } {
   try {
-    return jwt.verify(token, JWT_SECRET) as JWTPayload
+    const payload = jwt.verify(token, JWT_SECRET) as JWTPayload
+    return { payload }
   } catch (error) {
-    return null
+    if (error instanceof jwt.TokenExpiredError) {
+      return { payload: null, error: 'Token has expired. Please log in again.' }
+    } else if (error instanceof jwt.JsonWebTokenError) {
+      return { payload: null, error: 'Invalid token. Please log in again.' }
+    }
+    return { payload: null, error: 'Authentication failed' }
   }
 }
 
@@ -88,17 +94,17 @@ export function authenticateToken(req: Request, res: Response, next: NextFunctio
   const token = authHeader && authHeader.split(' ')[1] // Bearer TOKEN
 
   if (!token) {
-    res.status(401).json({ error: 'Authentication required' })
+    res.status(401).json({ error: 'Authentication required', authError: true })
     return
   }
 
-  const payload = verifyToken(token)
-  if (!payload) {
-    res.status(403).json({ error: 'Invalid or expired token' })
+  const result = verifyToken(token)
+  if (!result.payload) {
+    res.status(401).json({ error: result.error || 'Invalid or expired token', authError: true })
     return
   }
 
-  req.user = payload
+  req.user = result.payload
   next()
 }
 
