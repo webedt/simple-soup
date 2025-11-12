@@ -10,6 +10,7 @@ COPY package*.json ./
 COPY frontend/package*.json ./frontend/
 COPY backend/package*.json ./backend/
 COPY reverse-proxy/package*.json ./reverse-proxy/
+COPY claude-code-api/package*.json ./claude-code-api/
 
 # Install all dependencies (including dev dependencies for HMR)
 RUN npm install
@@ -18,6 +19,7 @@ RUN npm install
 COPY frontend ./frontend
 COPY backend ./backend
 COPY reverse-proxy ./reverse-proxy
+COPY claude-code-api ./claude-code-api
 
 # Copy startup script
 COPY start-services.sh ./start-services.sh
@@ -34,6 +36,7 @@ ENV FRONTEND_URL=http://localhost:5173
 EXPOSE 3000
 EXPOSE 3001
 EXPOSE 5173
+EXPOSE 3002
 
-# Start all three services in development mode
+# Start all four services in development mode
 CMD ["./start-services.sh"]
