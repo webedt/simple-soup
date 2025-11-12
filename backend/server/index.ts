@@ -99,12 +99,26 @@ async function initDatabase() {
         password_hash TEXT NOT NULL,
         role VARCHAR(20) NOT NULL DEFAULT 'free',
         name VARCHAR(255),
+        claude_credentials TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
       CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+    `)
+
+    // Add claude_credentials column if it doesn't exist (migration)
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'users' AND column_name = 'claude_credentials'
+        ) THEN
+          ALTER TABLE users ADD COLUMN claude_credentials TEXT;
+        END IF;
+      END $$;
     `)
 
     console.log('✅ Database schema initialized')
@@ -762,7 +776,7 @@ async function start() {
   app.use('/users', userRoutes)
 
   // Mount Claude API routes
-  const claudeRoutes = createClaudeRoutes()
+  const claudeRoutes = createClaudeRoutes(pool, dbAvailable, inMemoryUsers)
   app.use('/claude', claudeRoutes)
 
   // Start listening

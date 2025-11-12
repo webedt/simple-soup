@@ -4,24 +4,16 @@ import type { Page } from '../utils/types'
 
 export const claudeSdkPage: Page = {
   id: 'claude-sdk',
-  title: 'Claude SDK',
+  title: 'Claude Code',
   icon: '🤖',
   render: () => `
     <div class="chat-container">
       <div class="chat-header">
         <h2>
           <span>🤖</span>
-          <span>Claude SDK Chat</span>
+          <span>Claude Code Chat</span>
         </h2>
         <div style="display: flex; gap: 1rem; align-items: center;">
-          <div class="model-selector">
-            <label for="model-select">Model:</label>
-            <select id="model-select">
-              <option value="claude-3-5-sonnet-20241022" selected>Claude 3.5 Sonnet</option>
-              <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku</option>
-              <option value="claude-3-opus-20240229">Claude 3 Opus</option>
-            </select>
-          </div>
           <div class="status">
             <span class="status-indicator"></span>
             <span>Ready</span>
@@ -32,9 +24,9 @@ export const claudeSdkPage: Page = {
       <div id="chat-messages" class="chat-messages">
         <div class="chat-welcome">
           <div class="chat-welcome-icon">✨</div>
-          <h3>Welcome to Claude SDK Chat</h3>
-          <p>Start a conversation with Claude using the Anthropic SDK.</p>
-          <p>Type your message below to begin.</p>
+          <h3>Welcome to Claude Code Chat</h3>
+          <p>Start a conversation with Claude Code powered by Docker containers.</p>
+          <p>Add your credentials in <a href="#account" style="color: var(--accent-primary);">Account Settings</a> first, then type your message below to begin.</p>
         </div>
       </div>
 
@@ -72,7 +64,6 @@ export function attachClaudeSdkListeners(): void {
   const chatInput = document.querySelector<HTMLTextAreaElement>('#chat-input')
   const sendButton = document.querySelector<HTMLButtonElement>('#send-button')
   const clearButton = document.querySelector<HTMLButtonElement>('#clear-button')
-  const modelSelect = document.querySelector<HTMLSelectElement>('#model-select')
 
   if (!chatInput || !sendButton || !clearButton) {
     console.error('Required elements not found')
@@ -128,11 +119,8 @@ export function attachClaudeSdkListeners(): void {
     showTypingIndicator()
 
     try {
-      // Get selected model
-      const model = modelSelect?.value || 'claude-3-5-sonnet-20241022'
-
       // Call API with streaming
-      await streamChatResponse(messages, model)
+      await streamChatResponse(messages)
     } catch (error) {
       console.error('Error sending message:', error)
       showError(error instanceof Error ? error.message : 'Failed to send message')
@@ -146,15 +134,21 @@ export function attachClaudeSdkListeners(): void {
   /**
    * Stream chat response from Claude API
    */
-  async function streamChatResponse(messageHistory: Message[], model: string) {
+  async function streamChatResponse(messageHistory: Message[]) {
+    const token = localStorage.getItem('token')
+
+    if (!token) {
+      throw new Error('Not authenticated. Please log in.')
+    }
+
     const response = await fetch('/api/claude/chat', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
-        messages: messageHistory,
-        model
+        messages: messageHistory
       }),
     })
 
@@ -268,9 +262,9 @@ export function attachClaudeSdkListeners(): void {
     messagesContainer.innerHTML = `
       <div class="chat-welcome">
         <div class="chat-welcome-icon">✨</div>
-        <h3>Welcome to Claude SDK Chat</h3>
-        <p>Start a conversation with Claude using the Anthropic SDK.</p>
-        <p>Type your message below to begin.</p>
+        <h3>Welcome to Claude Code Chat</h3>
+        <p>Start a conversation with Claude Code powered by Docker containers.</p>
+        <p>Add your credentials in <a href="#account" style="color: var(--accent-primary);">Account Settings</a> first, then type your message below to begin.</p>
       </div>
     `
   }

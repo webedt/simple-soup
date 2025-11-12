@@ -141,6 +141,59 @@ export const accountPage: Page = {
         </form>
       </div>
 
+      <!-- Claude Credentials -->
+      <div class="card" style="margin-bottom: 2rem;">
+        <h2 style="margin-top: 0;">🤖 Claude Code Credentials</h2>
+        <p style="color: #888; margin-bottom: 1rem;">
+          Paste your Claude Code credentials.json to enable AI-powered chat features.
+          <a href="https://github.com/webedt/docker-claude-code" target="_blank" style="color: var(--accent-primary);">Learn more</a>
+        </p>
+
+        <form id="credentials-form">
+          <div style="margin-bottom: 1.5rem;">
+            <label for="credentials-json" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">
+              Credentials JSON
+            </label>
+            <textarea
+              id="credentials-json"
+              name="credentials-json"
+              rows="12"
+              style="width: 100%; padding: 0.75rem; border: 1px solid #444; border-radius: 6px; background: #1a1a1a; color: #e0e0e0; font-size: 0.9rem; font-family: 'Courier New', monospace; resize: vertical;"
+              placeholder='{\n  "claudeAiOauth": {\n    "accessToken": "sk-ant-oat01-...",\n    "refreshToken": "sk-ant-ort01-...",\n    "expiresAt": 1234567890,\n    "scopes": ["user:inference", "user:profile"]\n  }\n}'
+            ></textarea>
+            <small style="color: #888; display: block; margin-top: 0.5rem;">
+              Your credentials are securely encrypted and stored in the database. They're used to authenticate with Claude Code in a Docker container.
+            </small>
+          </div>
+
+          <div id="credentials-status" style="display: none; margin-bottom: 1rem; padding: 1rem; border-radius: 6px;">
+          </div>
+
+          <div style="display: flex; gap: 1rem;">
+            <button
+              type="submit"
+              class="btn-primary"
+            >
+              Save Credentials
+            </button>
+            <button
+              type="button"
+              id="test-credentials-button"
+              style="padding: 0.75rem 1.5rem; background: transparent; color: var(--accent-primary); border: 2px solid var(--accent-primary); border-radius: 6px; cursor: pointer; font-size: 1rem; font-weight: 600;"
+            >
+              Test Connection
+            </button>
+            <button
+              type="button"
+              id="clear-credentials-button"
+              style="padding: 0.75rem 1.5rem; background: transparent; color: #ff6b6b; border: 2px solid #ff6b6b; border-radius: 6px; cursor: pointer; font-size: 1rem; font-weight: 600;"
+            >
+              Clear
+            </button>
+          </div>
+        </form>
+      </div>
+
       <!-- Logout -->
       <div class="card">
         <h2 style="margin-top: 0;">Session</h2>
@@ -258,6 +311,149 @@ export function attachAccountListeners(): void {
       if (submitButton) {
         submitButton.disabled = false
         submitButton.textContent = 'Change Password'
+      }
+    })
+  }
+
+  // Credentials form
+  const credentialsForm = document.querySelector<HTMLFormElement>('#credentials-form')
+  const credentialsTextarea = document.querySelector<HTMLTextAreaElement>('#credentials-json')
+  const testCredentialsButton = document.querySelector<HTMLButtonElement>('#test-credentials-button')
+  const clearCredentialsButton = document.querySelector<HTMLButtonElement>('#clear-credentials-button')
+
+  // Load existing credentials
+  loadCredentials()
+
+  async function loadCredentials() {
+    try {
+      const response = await fetch('/api/users/credentials', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.credentials && credentialsTextarea) {
+          credentialsTextarea.value = JSON.stringify(JSON.parse(data.credentials), null, 2)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load credentials:', error)
+    }
+  }
+
+  if (credentialsForm) {
+    credentialsForm.addEventListener('submit', async (e) => {
+      e.preventDefault()
+      hideMessage('credentials-status')
+
+      const credentialsJson = credentialsTextarea?.value || ''
+
+      // Validate JSON
+      try {
+        const parsed = JSON.parse(credentialsJson)
+        if (!parsed.claudeAiOauth) {
+          showMessage('credentials-status', 'Invalid credentials format: missing claudeAiOauth', true)
+          return
+        }
+        if (!parsed.claudeAiOauth.accessToken || !parsed.claudeAiOauth.refreshToken) {
+          showMessage('credentials-status', 'Invalid credentials: missing accessToken or refreshToken', true)
+          return
+        }
+      } catch (error) {
+        showMessage('credentials-status', 'Invalid JSON format', true)
+        return
+      }
+
+      const submitButton = credentialsForm.querySelector<HTMLButtonElement>('button[type="submit"]')
+      if (submitButton) {
+        submitButton.disabled = true
+        submitButton.textContent = 'Saving...'
+      }
+
+      try {
+        const response = await fetch('/api/users/credentials', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({ credentials: credentialsJson })
+        })
+
+        const data = await response.json()
+
+        if (response.ok) {
+          showMessage('credentials-status', 'Credentials saved successfully! You can now use Claude SDK chat.', false)
+        } else {
+          showMessage('credentials-status', data.error || 'Failed to save credentials', true)
+        }
+      } catch (error) {
+        showMessage('credentials-status', 'Network error: Failed to save credentials', true)
+      }
+
+      if (submitButton) {
+        submitButton.disabled = false
+        submitButton.textContent = 'Save Credentials'
+      }
+    })
+  }
+
+  if (testCredentialsButton) {
+    testCredentialsButton.addEventListener('click', async () => {
+      hideMessage('credentials-status')
+
+      testCredentialsButton.disabled = true
+      testCredentialsButton.textContent = 'Testing...'
+
+      try {
+        const response = await fetch('/api/users/credentials/test', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        })
+
+        const data = await response.json()
+
+        if (response.ok) {
+          showMessage('credentials-status', `✓ Connection successful! ${data.message || ''}`, false)
+        } else {
+          showMessage('credentials-status', `✗ Connection failed: ${data.error || 'Unknown error'}`, true)
+        }
+      } catch (error) {
+        showMessage('credentials-status', '✗ Network error: Failed to test credentials', true)
+      }
+
+      testCredentialsButton.disabled = false
+      testCredentialsButton.textContent = 'Test Connection'
+    })
+  }
+
+  if (clearCredentialsButton && credentialsTextarea) {
+    clearCredentialsButton.addEventListener('click', async () => {
+      if (confirm('Are you sure you want to clear your Claude credentials? This will disable Claude SDK chat features.')) {
+        hideMessage('credentials-status')
+
+        try {
+          const response = await fetch('/api/users/credentials', {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          })
+
+          if (response.ok) {
+            credentialsTextarea.value = ''
+            showMessage('credentials-status', 'Credentials cleared successfully', false)
+          } else {
+            const data = await response.json()
+            showMessage('credentials-status', data.error || 'Failed to clear credentials', true)
+          }
+        } catch (error) {
+          showMessage('credentials-status', 'Network error: Failed to clear credentials', true)
+        }
       }
     })
   }

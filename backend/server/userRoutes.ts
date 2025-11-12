@@ -14,6 +14,167 @@ import {
 export function createUserRoutes(pool: Pool | null, dbAvailable: boolean, inMemoryUsers: Map<string, any>) {
   const router = Router()
 
+  // Credentials endpoints (require authentication, but not admin)
+  // GET /users/credentials - Get own credentials
+  router.get('/credentials', authenticateToken, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.userId
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' })
+      }
+
+      if (dbAvailable && pool) {
+        const result = await pool.query('SELECT claude_credentials FROM users WHERE id = $1', [userId])
+
+        if (result.rows.length === 0) {
+          return res.status(404).json({ error: 'User not found' })
+        }
+
+        res.json({ credentials: result.rows[0].claude_credentials || null })
+      } else {
+        const user = inMemoryUsers.get(userId)
+        if (!user) {
+          return res.status(404).json({ error: 'User not found' })
+        }
+        res.json({ credentials: user.claude_credentials || null })
+      }
+    } catch (error) {
+      console.error('Get credentials error:', error)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  })
+
+  // PUT /users/credentials - Update own credentials
+  router.put('/credentials', authenticateToken, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.userId
+      const { credentials } = req.body
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' })
+      }
+
+      if (!credentials) {
+        return res.status(400).json({ error: 'Credentials are required' })
+      }
+
+      // Validate JSON format
+      try {
+        const parsed = JSON.parse(credentials)
+        if (!parsed.claudeAiOauth || !parsed.claudeAiOauth.accessToken || !parsed.claudeAiOauth.refreshToken) {
+          return res.status(400).json({ error: 'Invalid credentials format' })
+        }
+      } catch (e) {
+        return res.status(400).json({ error: 'Invalid JSON format' })
+      }
+
+      if (dbAvailable && pool) {
+        await pool.query(
+          'UPDATE users SET claude_credentials = $1, updated_at = NOW() WHERE id = $2',
+          [credentials, userId]
+        )
+        res.json({ message: 'Credentials saved successfully' })
+      } else {
+        const user = inMemoryUsers.get(userId)
+        if (!user) {
+          return res.status(404).json({ error: 'User not found' })
+        }
+        user.claude_credentials = credentials
+        user.updated_at = new Date().toISOString()
+        inMemoryUsers.set(userId, user)
+        res.json({ message: 'Credentials saved successfully' })
+      }
+    } catch (error) {
+      console.error('Update credentials error:', error)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  })
+
+  // DELETE /users/credentials - Clear own credentials
+  router.delete('/credentials', authenticateToken, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.userId
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' })
+      }
+
+      if (dbAvailable && pool) {
+        await pool.query(
+          'UPDATE users SET claude_credentials = NULL, updated_at = NOW() WHERE id = $1',
+          [userId]
+        )
+        res.json({ message: 'Credentials cleared successfully' })
+      } else {
+        const user = inMemoryUsers.get(userId)
+        if (!user) {
+          return res.status(404).json({ error: 'User not found' })
+        }
+        user.claude_credentials = null
+        user.updated_at = new Date().toISOString()
+        inMemoryUsers.set(userId, user)
+        res.json({ message: 'Credentials cleared successfully' })
+      }
+    } catch (error) {
+      console.error('Clear credentials error:', error)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  })
+
+  // POST /users/credentials/test - Test credentials
+  router.post('/credentials/test', authenticateToken, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.userId
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' })
+      }
+
+      let credentials = null
+
+      if (dbAvailable && pool) {
+        const result = await pool.query('SELECT claude_credentials FROM users WHERE id = $1', [userId])
+        if (result.rows.length > 0) {
+          credentials = result.rows[0].claude_credentials
+        }
+      } else {
+        const user = inMemoryUsers.get(userId)
+        if (user) {
+          credentials = user.claude_credentials
+        }
+      }
+
+      if (!credentials) {
+        return res.status(400).json({ error: 'No credentials found. Please save your credentials first.' })
+      }
+
+      try {
+        const parsed = JSON.parse(credentials)
+
+        // Check if credentials are expired
+        if (parsed.claudeAiOauth.expiresAt) {
+          const expiresAt = parsed.claudeAiOauth.expiresAt
+          const now = Math.floor(Date.now() / 1000)
+
+          if (expiresAt < now) {
+            return res.json({
+              message: 'Credentials are expired but may be refreshable',
+              expired: true
+            })
+          }
+        }
+
+        res.json({ message: 'Credentials format is valid and not expired', expired: false })
+      } catch (e) {
+        return res.status(400).json({ error: 'Invalid credentials format' })
+      }
+    } catch (error) {
+      console.error('Test credentials error:', error)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  })
+
   // All user management routes require admin role
   router.use(authenticateToken, authorizeRole('admin'))
 
