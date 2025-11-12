@@ -27,9 +27,10 @@ import { claudeSdkPage, attachClaudeSdkListeners } from './pages/claude-sdk'
 function getPages() {
   const basePages = [homePage, sessionsPage, aboutPage, settingsPage, llmTxtPage, claudeSdkPage]
 
-  if (isAuthenticated()) {
-    basePages.push(accountPage)
+  // Always include account page - it will redirect to login if not authenticated
+  basePages.push(accountPage)
 
+  if (isAuthenticated()) {
     if (isAdmin()) {
       basePages.push(usersPage)
     }
