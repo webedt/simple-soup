@@ -25,10 +25,42 @@ export function initAuth(): void {
   if (token && userStr) {
     try {
       currentUser = JSON.parse(userStr)
+
+      // Validate token is still valid by checking expiration
+      validateTokenAsync(token).catch(() => {
+        // Token is invalid or expired, clear auth
+        console.log('Token expired or invalid, clearing auth state')
+        clearAuth()
+      })
     } catch (error) {
       console.error('Error parsing stored user:', error)
       clearAuth()
     }
+  } else if (token || userStr) {
+    // If we have one but not the other, clear both to prevent inconsistency
+    clearAuth()
+  }
+}
+
+/**
+ * Validate token by making a test request to the backend
+ */
+async function validateTokenAsync(token: string): Promise<boolean> {
+  try {
+    const response = await fetch('/api/auth/me', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+
+    if (!response.ok) {
+      return Promise.reject(new Error('Token invalid'))
+    }
+
+    return true
+  } catch (error) {
+    return Promise.reject(error)
   }
 }
 
