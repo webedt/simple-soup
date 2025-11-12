@@ -21,10 +21,11 @@ import { llmTxtPage, attachLlmTxtListeners } from './pages/llm-txt'
 import { loginPage, attachLoginListeners } from './pages/login'
 import { accountPage, attachAccountListeners } from './pages/account'
 import { usersPage, attachUsersListeners } from './pages/users'
+import { claudeSdkPage, attachClaudeSdkListeners } from './pages/claude-sdk'
 
 // Define all pages (users page only visible to admins)
 function getPages() {
-  const basePages = [homePage, sessionsPage, aboutPage, settingsPage, llmTxtPage]
+  const basePages = [homePage, sessionsPage, aboutPage, settingsPage, llmTxtPage, claudeSdkPage]
 
   if (isAuthenticated()) {
     basePages.push(accountPage)
@@ -95,6 +96,9 @@ function attachPageEventListeners(pageId: string): void {
       break
     case 'users':
       attachUsersListeners()
+      break
+    case 'claude-sdk':
+      attachClaudeSdkListeners()
       break
   }
 }

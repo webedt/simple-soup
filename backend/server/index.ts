@@ -7,6 +7,7 @@ import { hashPassword, generateRandomPassword } from './auth.js'
 import { v4 as uuidv4 } from 'uuid'
 import { createAuthRoutes } from './authRoutes.js'
 import { createUserRoutes } from './userRoutes.js'
+import { createClaudeRoutes } from './claudeRoutes.js'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -760,10 +761,14 @@ async function start() {
   const userRoutes = createUserRoutes(pool, dbAvailable, inMemoryUsers)
   app.use('/users', userRoutes)
 
+  // Mount Claude API routes
+  const claudeRoutes = createClaudeRoutes()
+  app.use('/claude', claudeRoutes)
+
   // Start listening
   app.listen(PORT, () => {
     console.log(`✅ Backend API server running on port ${PORT}`)
-    console.log(`📡 Routes: /sessions, /auth, /users, /llm-txt, /health`)
+    console.log(`📡 Routes: /sessions, /auth, /users, /claude, /llm-txt, /health`)
     console.log(`📡 (accessed via reverse proxy at /api/...)`)
     console.log(`💾 Storage mode: ${dbAvailable ? 'PostgreSQL' : 'In-Memory (temporary)'}`)
 
